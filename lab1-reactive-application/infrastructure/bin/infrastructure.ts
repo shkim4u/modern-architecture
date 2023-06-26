@@ -4,6 +4,8 @@ import * as cdk from 'aws-cdk-lib';
 import { InfrastructureStack } from '../lib/infrastructure-stack';
 import {InfrastructureEnvironment} from "./infrastructure-environment";
 import {NetworkStack} from "../lib/network-stack";
+import {IamStack} from "../lib/iam-stack";
+import {Ec2Stack} from "../lib/ec2-stack";
 
 const app = new cdk.App();
 
@@ -33,12 +35,37 @@ const infrastructureEnvironment: InfrastructureEnvironment = {
 };
 
 /**
+ * IAM stack.
+ */
+const iamStack = new IamStack(
+    app,
+    `${infrastructureEnvironment.stackNamePrefix}-IamStack`,
+    {
+        env
+    }
+);
+
+/**
  * Network stack.
  */
 const networkStack = new NetworkStack(
     app,
     `${infrastructureEnvironment.stackNamePrefix}-NetworkStack`,
     infrastructureEnvironment,
+    {
+        env
+    }
+);
+
+/**
+ * EC2 stack to hold a reactive application based on Spring Boot and Spring Data Redis.
+ */
+const ec2Stack = new Ec2Stack(
+    app,
+    `${infrastructureEnvironment.stackNamePrefix}-Ec2Stack`,
+    networkStack.vpc,
+    networkStack.eksPublicSubnets,
+    iamStack.adminRole,
     {
         env
     }

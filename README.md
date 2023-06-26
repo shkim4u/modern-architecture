@@ -1,6 +1,19 @@
-# 분산 트랜잭션 오케스트레이션 (Saga)
+# 리액티브 시스템 체험
+우리는 리액티브 시스템이 현대적인 아키텍처를 구성하는 많이 사용된다고 자주 들어왔습니다.<br>
+짧게 구성된 이번 실습을 통해 리액티브 어플리케이션을 구현할 수 있도록 하는 리액티브 프로그래밍이 어떤 식으로 동작하는지 살펴보고자 합니다.<br>
+이를 위해 아래와 같이 데이저 저장소로 Redis를 사용하며 이를 접근하기 위한 백엔드 어플리케이션을 Spring Boot으로 구동시켜보고자 합니다.<br>
 
-이 실습에서는 AwsomePets라고 하는 전자 상거래 시스템을 위한 Saga Orchestration 패턴의 구현을 실습합니다. Saga 패턴은 각 트랜잭션이 단일 서비스 내에서 데이터를 업데이트하는 일련의 로컬 트랜잭션입니다. Saga 오케스트레이션은 이러한 로컬 트랜잭션 묶음을 조정하기 위해 단일 오케스트레이터를 사용합니다. 이 시스템은 API Gateway, AWS Lambda, Amazon DynamoDB 및 AWS Step Functions을 사용하여 구현되었고, AWS Step Functions를 사가 오케스트레이터로 사용합니다.
+Spring Boot 어플리케이션 내에는 [<u>```Spring Data Redis```</u>](https://projects.spring.io/spring-data-redis/) 라이브러리를 통해 Redis 저장소에 Reactive하게 접근하며, 이는 , [<u>```Project Reactor```</u>](https://projectreactor.io/), [<u>```Netty```</u>](https://netty.io/) 및 이에 기반한 [<u>```WebFlux```</u>](https://docs.spring.io/spring-framework/reference/web/webflux.html)를 포함하고 있습니다.<br>
+위에서 해당 링크를 클릭하여 각각에 대한 자세한 내용을 더 살펴보실 수 있습니다.<br>
+
+![Reactive System with Redis](./lab1-reactive-application/docs/assets/reactive-architecture-redis-diagram-new.png)
+
+> (참고)<br>
+> 아래 링크는 ```Reactive Manifesto```와 AWS 서비스 사이의 관계를 설명하는 백서입니다.
+> - https://docs.aws.amazon.com/whitepapers/latest/reactive-systems-on-aws/the-reactive-manifesto-and-aws-services.html
+
+# 분산 트랜잭션 오케스트레이션 (Saga)
+AwsomePets라고 하는 전자 상거래 시스템을 위한 Saga Orchestration 패턴의 구현을 실습합니다. Saga 패턴은 각 트랜잭션이 단일 서비스 내에서 데이터를 업데이트하는 일련의 로컬 트랜잭션입니다. Saga 오케스트레이션은 이러한 로컬 트랜잭션 묶음을 조정하기 위해 단일 오케스트레이터를 사용합니다. 이 시스템은 API Gateway, AWS Lambda, Amazon DynamoDB 및 AWS Step Functions을 사용하여 구현되었고, AWS Step Functions를 사가 오케스트레이터로 사용합니다.
 
 우리는 SAM (Serverless Application Model)을 사용하여 서비스를 배포할 것입니다. SAM에 대한 사항을 자세히 다루지 않을 것이며 이에 대한 자세한 내용을 보려면 [[여기]](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html)를 클릭하십시오. Lambda 함수의 소스 코드도 포함되어 배포됩니다.<br>
 
@@ -31,19 +44,26 @@ AWS Lambda는 서버 프로비저닝 또는 관리, 워크로드 클러스터의
 AWS Step Functions는 AWS Lambda 함수와 여러 AWS 서비스를 비즈니스 크리티컬 애플리케이션으로 쉽게 시퀀싱할 수 있는 서버리스 함수 오케스트레이터입니다. 시각적 인터페이스를 통해 애플리케이션 상태를 유지 관리하는 일련의 체크포인트 및 이벤트 기반 워크플로를 만들고 실행할 수 있습니다. 한 단계의 출력은 다음 단계의 입력 역할을 합니다. 애플리케이션의 각 단계는 비즈니스 논리에 정의된 대로 순서대로 실행됩니다. AWS Step Functions에 대한 자세한 내용을 보려면 [[여기]](https://aws.amazon.com/step-functions/)를 클릭하십시오.
 
 ## AWS DynamoDB
-Amazon DynamoDB is a key-value and document database that delivers single-digit millisecond performance at any scale. It’s a fully managed, multi-region, multi-active, durable database with built-in security, backup and restore, and in-memory caching for internet-scale applications. DynamoDB can handle more than 10 trillion requests per day and can support peaks of more than 20 million requests per second.
-
-Click here for more information about Amazon DynamoDB
-
 Amazon DynamoDB는 모든 규모에서 한 자릿수 밀리초의 성능을 제공하는 키-값 및 문서 데이터베이스입니다. 내장된 보안, 백업 및 복원, 인터넷 규모 애플리케이션을 위한 메모리 내 캐싱을 갖춘 완전 관리형, 다중 리전, 다중 활성, 내구성 있는 데이터베이스입니다. DynamoDB는 하루에 10조 개 이상의 요청을 처리할 수 있으며 초당 최대 2천만 개 이상의 요청을 지원할 수 있습니다. Amazon DynamoDB에 대한 자세한 내용을 보려면 [[여기]](https://aws.amazon.com/dynamodb/)를 클릭하십시오.
 
 ---
 
-## 작업 환경 (Cloud9) 설정
+# 작업 환경 (Cloud9) 설정
 현대적 아키텍처 실습을 진행하기에 앞서 우선 작업 환경으로 쓰일 Cloud9에 대한 환경 설정을 진행합니다.<br>
 [![작업 환경 (Cloud9) 설정](common/docs/assets/configure-cloud9.png)](common/docs/cloud9.md)
 
-## 실습 - 분산 트랜잭션 실습
+# 실습 1 - 리액티브 어플리케이션 맛보기
+이 실습에서는 현대적인 시스템 구축에 있어 기본적인 프로그래밍 패러다임이 되고 있는 리액티브 프로그래밍 기법을 Spring Boot과 Redis를 활용하여 간단하게 살펴보도록 하겠습니다.<br>
+
+아래 순서로 진행됩니다.
+1. [반응형 어플리케이션 인프라 구성]()
+2. 
+
+[![Lab1](lab1-reactive-application/docs/assets/lab1-reactive-programming.png)](lab1-reactive-application/docs/1-reactive-application-infrastructure.md "Lab 1")
+<br></br>
+
+
+# 실습 2 - 분산 트랜잭션 실습
 
 이번 실습은 아래와 같은 순서로 진행될 예정입니다.
 1. [현대적 아키텍처 실습 환경 설치](./lab2-saga/docs/1-install-serverless-infrastructure.md)
