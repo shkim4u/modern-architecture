@@ -3,6 +3,7 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { InfrastructureStack } from '../lib/infrastructure-stack';
 import {InfrastructureEnvironment} from "./infrastructure-environment";
+import {NetworkStack} from "../lib/network-stack";
 
 const app = new cdk.App();
 
@@ -31,9 +32,14 @@ const infrastructureEnvironment: InfrastructureEnvironment = {
     eksClusterAdminIamRoles: ["TeamRole"],
 };
 
-new InfrastructureStack(
+/**
+ * Network stack.
+ */
+const networkStack = new NetworkStack(
     app,
-    'InfrastructureStack', {
+    `${infrastructureEnvironment.stackNamePrefix}-NetworkStack`,
+    infrastructureEnvironment,
+    {
         env
     }
 );
