@@ -81,6 +81,7 @@ export class NetworkStack extends Stack {
                 ).attrAllocationId,
             }
         );
+        ngwA.tags.setTag("Name", `${id}-NATGateway-a`);
 
         // Create another NAT gateway in this public subnet-c.
         const ngwC = new CfnNatGateway(
@@ -97,6 +98,7 @@ export class NetworkStack extends Stack {
                 ).attrAllocationId,
             }
         );
+        ngwC.tags.setTag("Name", `${id}-NATGateway-c`);
 
         console.log(`Region: ${props?.env?.region}`);
 
