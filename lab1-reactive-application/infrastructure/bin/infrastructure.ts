@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { InfrastructureStack } from '../lib/infrastructure-stack';
 import {InfrastructureEnvironment} from "./infrastructure-environment";
 import {NetworkStack} from "../lib/network-stack";
 import {IamStack} from "../lib/iam-stack";
 import {Ec2Stack} from "../lib/ec2-stack";
+import {RedisStack} from "../lib/redis-stack";
 
 const app = new cdk.App();
 
@@ -70,3 +70,19 @@ const ec2Stack = new Ec2Stack(
         env
     }
 );
+ec2Stack.addDependency(networkStack);
+
+/**
+ * Redis stack.
+ */
+const redisStack = new RedisStack(
+    app,
+    `${infrastructureEnvironment.stackNamePrefix}-RedisStack`,
+    networkStack.vpc,
+    ec2Stack.ec2InstanceSecurityGroup,
+    networkStack.eksPrivateSubnets,
+    {
+        env
+    }
+);
+redisStack.addDependency(networkStack);
