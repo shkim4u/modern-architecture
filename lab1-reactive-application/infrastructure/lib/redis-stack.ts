@@ -64,6 +64,7 @@ export class RedisStack extends Stack {
             this,
             `${id}-RedisReplicaGroup`,
             {
+                replicationGroupId: `${id}-RedisReplicaGroup`,
                 replicationGroupDescription: "RedisReplicationGroup",
                 // atRestEncryptionEnabled: true,
                 multiAzEnabled: true,
