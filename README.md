@@ -56,8 +56,10 @@ Amazon DynamoDB는 모든 규모에서 한 자릿수 밀리초의 성능을 제�
 이 실습에서는 현대적인 시스템 구축에 있어 기본적인 프로그래밍 패러다임이 되고 있는 리액티브 프로그래밍 기법을 Spring Boot과 Redis를 활용하여 간단하게 살펴보도록 하겠습니다.<br>
 
 아래 순서로 진행됩니다.
-1. [반응형 어플리케이션 인프라 구성]()
-2. 
+1. [반응형 어플리케이션 인프라 구성](./lab1-reactive-application/docs/1-reactive-application-infrastructure.md)
+2. [Tool 설정 및 반응형 어플리케이션 소스 코드 내려받기](./lab1-reactive-application/docs/2-tooling-and-cloning-application-source-code.md)
+3. [빌드, 실행 및 로컬 테스트](./lab1-reactive-application/docs/3-build-run-local-test.md)
+4. [AWS 관리형 레디스를 통한 테스트](./lab1-reactive-application/docs/4-test-with-aws-easticache-for-redis.md)
 
 [![Lab1](lab1-reactive-application/docs/assets/lab1-reactive-programming.png)](lab1-reactive-application/docs/1-reactive-application-infrastructure.md "Lab 1")
 <br></br>
