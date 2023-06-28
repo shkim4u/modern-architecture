@@ -3,7 +3,7 @@
 짧게 구성된 이번 실습을 통해 리액티브 어플리케이션을 구현할 수 있도록 하는 리액티브 프로그래밍이 어떤 식으로 동작하는지 살펴보고자 합니다.<br>
 이를 위해 아래와 같이 데이저 저장소로 Redis를 사용하며 이를 접근하기 위한 백엔드 어플리케이션을 Spring Boot으로 구동시켜보고자 합니다.<br>
 
-Spring Boot 어플리케이션 내에는 [<u>```Spring Data Redis```</u>](https://projects.spring.io/spring-data-redis/) 라이브러리를 통해 Redis 저장소에 Reactive하게 접근하며, 이는 , [<u>```Project Reactor```</u>](https://projectreactor.io/), [<u>```Netty```</u>](https://netty.io/) 및 이에 기반한 [<u>```WebFlux```</u>](https://docs.spring.io/spring-framework/reference/web/webflux.html)를 포함하고 있습니다.<br>
+Spring Boot 어플리케이션 내에는 [<u>```Spring Data Redis```</u>](https://projects.spring.io/spring-data-redis/) 라이브러리를 통해 Redis 저장소에 Reactive하게 접근하며, 이는 [<u>```Project Reactor```</u>](https://projectreactor.io/), [<u>```Netty```</u>](https://netty.io/) 및 이에 기반한 [<u>```WebFlux```</u>](https://docs.spring.io/spring-framework/reference/web/webflux.html)를 포함하고 있습니다.<br>
 위에서 해당 링크를 클릭하여 각각에 대한 자세한 내용을 더 살펴보실 수 있습니다.<br>
 
 ![Reactive System with Redis](./lab1-reactive-application/docs/assets/reactive-architecture-redis-diagram-new.png)

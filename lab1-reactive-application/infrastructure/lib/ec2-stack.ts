@@ -1,21 +1,42 @@
 import * as cdk from 'aws-cdk-lib';
 import {Construct} from "constructs";
-import {aws_ec2, Stack, StackProps} from "aws-cdk-lib";
+import {aws_ec2, aws_elasticloadbalancingv2, aws_elasticloadbalancingv2_targets, Stack, StackProps} from "aws-cdk-lib";
 import {Role} from "aws-cdk-lib/aws-iam";
+import {ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
 
 export class Ec2Stack extends Stack {
     readonly ec2Instance: aws_ec2.Instance;
     readonly ec2InstanceSecurityGroup: aws_ec2.SecurityGroup;
+    readonly albInstanceSecurityGroup: aws_ec2.SecurityGroup;
 
     constructor(
         scope: Construct,
         id: string,
         vpc: aws_ec2.IVpc,
         publicSubnets: aws_ec2.ISubnet[],
+        privateSubnets: aws_ec2.ISubnet[],
         role: Role,
         props: StackProps
     ) {
         super(scope, id, props);
+
+        /*
+         * Create a security group for ALB.
+         */
+        this.albInstanceSecurityGroup = new aws_ec2.SecurityGroup(
+            this,
+            `${id}-ALB-SecurityGroup`,
+            {
+                vpc,
+                allowAllOutbound: true,
+                description: 'Security group for ALB',
+            }
+        );
+        this.albInstanceSecurityGroup.addIngressRule(
+            aws_ec2.Peer.anyIpv4(),
+            aws_ec2.Port.tcp(80),
+            'Allow HTTP for ALB',
+        );
 
         /*
          * Create a security group for an EC2 instance.
@@ -29,6 +50,7 @@ export class Ec2Stack extends Stack {
                 description: 'Security group for a server host',
             }
         );
+        this.ec2InstanceSecurityGroup.addIngressRule(this.albInstanceSecurityGroup, aws_ec2.Port.tcp(8080), 'Allow 8080 for EC2');
 
         /*
          * Create an EC2 instance.
@@ -60,22 +82,65 @@ export class Ec2Stack extends Stack {
         );
         this.ec2Instance.node.addDependency(this.ec2InstanceSecurityGroup);
 
+        const alb = new aws_elasticloadbalancingv2.ApplicationLoadBalancer(
+            this,
+            `${id}-ALB`,
+            {
+                loadBalancerName: `${id}-ALB`,
+                vpc: vpc,
+                vpcSubnets: {
+                    subnets: publicSubnets
+                },
+                internetFacing: true,
+                securityGroup: this.albInstanceSecurityGroup
+            }
+        );
+        alb.node.addDependency(this.ec2Instance);
+
+        const listener = alb.addListener(
+            `${id}-ALB-Listener`,
+            {
+                protocol: ApplicationProtocol.HTTP,
+                port: 80,
+                open: true
+            }
+        );
+        listener.addTargets(
+            `${id}-ALB-Target`,
+            {
+                port: 8080,
+                targets: [new aws_elasticloadbalancingv2_targets.InstanceTarget(this.ec2Instance)],
+                healthCheck: {
+                    path: '/hello/alb',
+                    unhealthyThresholdCount: 2,
+                    healthyThresholdCount: 5,
+                    interval: cdk.Duration.seconds(30),
+                },
+            }
+        );
+
         /**
          * Outputs
          */
         new cdk.CfnOutput(
             this,
-            `${id}-Rds-Bastion-PublicIp`, {
+            `${id}-EC2-Server-PublicIp`, {
                 value: this.ec2Instance.instancePublicIp
             }
         );
 
         new cdk.CfnOutput(
             this,
-            `${id}-Rds-Bastion-PrivateIp`, {
+            `${id}-EC2-Server-PrivateIp`, {
                 value: this.ec2Instance.instancePrivateIp
             }
         );
 
+        new cdk.CfnOutput(
+            this,
+            `${id}-ALB-DnsName`, {
+                value: alb.loadBalancerDnsName
+            }
+        );
     }
 }

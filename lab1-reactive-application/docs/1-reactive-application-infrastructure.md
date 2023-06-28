@@ -18,6 +18,30 @@
 
 ```bash
 # 1. IaC 디렉토리로 이동
+cd ~/environment/modern-architecture/lab1-reactive-application/infrastructure
 
+# 2. npm install pakcage dependencies
+npm install
 
+# 3. AWS CDK bootstrapping
+cdk bootstrapping
+
+# 4. CDK synthesize & deploy
+# Will be calling [cdk synth && cdk deploy --all --outputs-file ./cdk-outputs.json --require-approval=never] internally
+npm run deploy
 ```
+배포가 진행되는 동안에 우리가 무엇을 배포하고 있는지 잠깐 살펴보도록 하겠습니다.<br>
+![Reactive Application Architecture](./assets/redis-reactive-application-architecture-new.png)<br>
+1. Network Stack: EC2 인스턴스 및 Redis 클러스터 자원이 위치할 VPC, 서브넷, Internet Gateway, NAT Gateway와 같은 네트워크 구성 요소를 생성합니다.
+2. EC2 Stack: 리액티브 어플리케이션을 호스팅하는 EC2 인스턴스를 생성합니다.
+3. IAM Stack: EC2 인스턴스가 수임(Assume)할 Role, Permission을 정의하고 생성합니다.
+4. Redis Stack: 간단한 데이터 구조를 인 메모리 구조로 저장하고 조회하는 캐시 서비스 클러스터입니다.
+
+배포가 성공적으로 완료되면 아래와 같이 표시됩니다.<br>
+![CDK Deploy Success](./assets/cdk-deploy-success.png)
+
+강사와 함께 CDK 소스 코드 및 이로부터 생성된 자원을 좀 더 둘러보도록 합니다.
+
+---
+
+## [[이전]](../../README.md) | [[다음]](2-tooling-and-cloning-application-source-code.md)
