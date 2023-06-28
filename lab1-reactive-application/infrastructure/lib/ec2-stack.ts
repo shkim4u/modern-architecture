@@ -122,12 +122,12 @@ export class Ec2Stack extends Stack {
         /**
          * Outputs
          */
-        new cdk.CfnOutput(
-            this,
-            `${id}-EC2-Server-PublicIp`, {
-                value: this.ec2Instance.instancePublicIp
-            }
-        );
+        // new cdk.CfnOutput(
+        //     this,
+        //     `${id}-EC2-Server-PublicIp`, {
+        //         value: this.ec2Instance.instancePublicIp
+        //     }
+        // );
 
         new cdk.CfnOutput(
             this,
