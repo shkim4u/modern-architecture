@@ -6,8 +6,8 @@ import {InfrastructureEnvironment} from "../bin/infrastructure-environment";
 
 export class NetworkStack extends Stack {
     readonly vpc: aws_ec2.Vpc;
-    readonly eksPublicSubnets: ISubnet[];
-    readonly eksPrivateSubnets: ISubnet[];
+    readonly publicSubnets: ISubnet[];
+    readonly privateSubnets: ISubnet[];
     readonly eksAllSubnets: ISubnet[];
 
     constructor(
@@ -126,12 +126,12 @@ export class NetworkStack extends Stack {
             }
         );
 
-        this.eksPublicSubnets = [publicSubnetA, publicSubnetC];
-        this.eksPrivateSubnets = [privateSubnetA, privateSubnetC];
-        this.eksAllSubnets = this.eksPublicSubnets.concat(this.eksPrivateSubnets);
+        this.publicSubnets = [publicSubnetA, publicSubnetC];
+        this.privateSubnets = [privateSubnetA, privateSubnetC];
+        this.eksAllSubnets = this.publicSubnets.concat(this.privateSubnets);
 
         // Attach route table for each private subnets.
-        this.eksPrivateSubnets.forEach(
+        this.privateSubnets.forEach(
             ({routeTable: {routeTableId}}, index) => {
                 new CfnRoute(
                     this,
@@ -164,9 +164,9 @@ export class NetworkStack extends Stack {
          * - Value: 1
          * https://aws.amazon.com/ko/premiumsupport/knowledge-center/eks-vpc-subnet-discovery/
          */
-        tagAllSubnets(this.eksPrivateSubnets, 'kubernetes.io/role/internal-elb', '1');
+        tagAllSubnets(this.privateSubnets, 'kubernetes.io/role/internal-elb', '1');
         // For Karpenter
-        tagAllSubnets(this.eksPrivateSubnets, `karpenter.sh/discovery/${networkInformation.stackNamePrefix}-EksCluster`, '1');
+        tagAllSubnets(this.privateSubnets, `karpenter.sh/discovery/${networkInformation.stackNamePrefix}-EksCluster`, '1');
 
         /**
          * Fix missing tag for public subnet.
@@ -217,7 +217,7 @@ export class NetworkStack extends Stack {
         );
 
         // Subnets.
-        this.eksPublicSubnets.forEach(
+        this.publicSubnets.forEach(
             (subnet, index) => {
                 new cdk.CfnOutput(
                     this,
@@ -227,7 +227,7 @@ export class NetworkStack extends Stack {
                 )
             }
         );
-        this.eksPrivateSubnets.forEach(
+        this.privateSubnets.forEach(
             (subnet, index) => {
                 new cdk.CfnOutput(
                     this,

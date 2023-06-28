@@ -6,6 +6,7 @@ import {NetworkStack} from "../lib/network-stack";
 import {IamStack} from "../lib/iam-stack";
 import {Ec2Stack} from "../lib/ec2-stack";
 import {RedisStack} from "../lib/redis-stack";
+import * as net from "net";
 
 const app = new cdk.App();
 
@@ -64,7 +65,8 @@ const ec2Stack = new Ec2Stack(
     app,
     `${infrastructureEnvironment.stackNamePrefix}-Ec2Stack`,
     networkStack.vpc,
-    networkStack.eksPublicSubnets,
+    networkStack.publicSubnets,
+    networkStack.privateSubnets,
     iamStack.adminRole,
     {
         env
@@ -80,7 +82,7 @@ const redisStack = new RedisStack(
     `${infrastructureEnvironment.stackNamePrefix}-RedisStack`,
     networkStack.vpc,
     ec2Stack.ec2InstanceSecurityGroup,
-    networkStack.eksPrivateSubnets,
+    networkStack.privateSubnets,
     {
         env
     }

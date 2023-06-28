@@ -64,7 +64,7 @@ export class Ec2Stack extends Stack {
                 vpcSubnets: {
                     // subnetType: aws_ec2.SubnetType.PUBLIC,
                     subnets: [
-                        publicSubnets[0]
+                        privateSubnets[0]
                     ]
                 },
                 role: role,
