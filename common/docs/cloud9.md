@@ -14,6 +14,7 @@ IDE로 Cloud9을 사용하기 위해서 Cloud9 환경을 시작하고, 각종 �
     * 2.2. eksctl 설치
     * 2.3. k9s 설치
     * 2.4. Helm 설치
+    * 2.5. 디스크 증설
 3. AWS CLI 업데이트
 4. AWS CDK 업그레이드
 5. 기타 도구 설치 및 구성
@@ -34,11 +35,15 @@ AWS Cloud9으로 실습 환경을 구축하는 순서는 아래와 같습니다.
 
 ### 1.1 AWS Cloud9으로 IDE 구성
 
-1. [AWS Cloud9 콘솔창](https://console.aws.amazon.com/cloud9)에 접속한 후, Create environment 버튼을 클릭합니다.
-2. Details에서 이름을 다음과 같이 cloud9-workspace으로 입력합니다.
-```
-cloud9-workspace
-```
+1. [AWS Cloud9 콘솔창](https://console.aws.amazon.com/cloud9)에 접속한 후, ```환경 생성 (Create environment)``` 버튼을 클릭합니다.<br>
+   ![Create Cloud9 Environment](./assets/create-cloud9-environment.png)
+2. ```세부 정보 (Details)```에서 이름을 다음과 같이 cloud9-workspace으로 입력합니다.
+   ```
+   cloud9-workspace
+   ```
+   
+   ![Cloud9 Name](./assets/create-cloud9-name.png)
+
 
 [//]: # (3. &#40;중요&#41; "Network settings"에서 앞서 EKS 클러스터 생성 과정에서 함께 생성된 VPC 및 Subnet을 선택한다. 이는 이후에 생성할 데이터베이스에 접속하여 구성하는 작업을 함께 수행하기 위함이다.)
 
@@ -48,7 +53,9 @@ cloud9-workspace
 
 [//]: # (![Cloud9 생성 화면]&#40;./assets/cloud9-network-settings.png&#41;)
 
-3. New EC2 Instance에서 인스턴스 타입 (Instance Type)으로 m5.4xlarge (16vCPU + 64GiB RAM)를 선택합니다. 플랫폼 (Platform)은 "Amazon Linux 2"를 선택하고 Timeout은 "1 Day"를 선택한 후 하단의 Create를 클릭하여 생성합니다.
+3. New EC2 Instance에서 인스턴스 타입 (Instance Type)으로 ```추가 인스턴스 유형``` > ```m5.4xlarge (16vCPU + 64GiB RAM)```를 선택합니다. 플랫폼 (Platform)은 "Amazon Linux 2"를 선택하고 Timeout은 "1 Day"를 선택한 후 하단의 Create를 클릭하여 생성합니다. 나머지는 기본값을 그대로 사용합니다.
+
+   ![Create Cloud9 Details](./assets/create-cloud9-details.png)
 
 ### 1.2. IAM Role 생성
 
@@ -56,26 +63,32 @@ IAM Role은 특정 권한을 가진 IAM 자격 증명입니다. IAM 역할의 �
 
 본 실습에서는 Administrator access 정책을 가진 IAM Role을 생성하여 AWS Cloud9에 사용하지만, 실제 프로덕션 환경을 구동할 때에는 최소 권한을 부여하는 것이 적합합니다.
 
-1. [여기](https://console.aws.amazon.com/iam/home#/roles$new?step=type&commonUseCase=EC2%2BEC2&selectedUseCase=EC2&policies=arn:aws:iam::aws:policy%2FAdministratorAccess)를 클릭하여 IAM Role 페이지에 접속합니다.
+1. [여기](https://console.aws.amazon.com/iam/home#/roles$new?step=type&commonUseCase=EC2%2BEC2&selectedUseCase=EC2&policies=arn:aws:iam::aws:policy%2FAdministratorAccess)를 클릭하여 IAM Role 생성 페이지에 접속합니다.<br>
+
+   ![Cloud9 IAM Role Create](./assets/create-cloud9-iam-role.png)
+
 2. AWS Service 및 EC2가 선택된 것을 확인하고 Next: Permissions를 클릭합니다.
 3. AdministratorAccess 정책이 선택된 것을 확인하고 Next: Tags를 클릭합니다.
 4. 태그 추가(선택 사항) 단계에서 Next: Review를 클릭합니다.
 5. Role name에 아래와 같이 cloud9-admin을 입력한 후, AdministratorAccess 관리형 정책이 추가된 것을 확인하고 Create role을 클릭합니다. (참고) Role 이름은 조금씩 다르게 지어도 되지만 기록해 두시면 좋습니다.
-```
-cloud9-admin
-```
+   ```
+   cloud9-admin
+   ```
+   
+   ![Create Cloud9 Role Review](./assets/create-cloud9-role-review.png)
+
 
 ### 1.3. IDE (AWS Cloud9 인스턴스)에 IAM Role 부여
 
 AWS Cloud9 환경은 EC2 인스턴스로 구동됩니다. 따라서 EC2 콘솔에서 AWS Cloud9 인스턴스에 방금 생성한 IAM Role을 부여합니다.
 
 1. [여기](https://console.aws.amazon.com/ec2/v2/home?#Instances:sort=desc:launchTime)를 클릭하여 EC2 인스턴스 페이지에 접속합니다.
-2. 해당 인스턴스를 선택 후, Actions > Security > Modify IAM Role을 클릭합니다 (참고: 설정된 언어에 따라 동일한 의미를 가지는 다른 언어로 표시될 수 있습니다).<br>
-   ![attach-role.png](./assets/attach-role.png)
+2. 해당 인스턴스를 선택 후, ```작업 (Actions) > 보안 (Security) > IAM 역할 수정 (Modify IAM Role)```을 클릭합니다 (참고: 설정된 언어에 따라 동일한 의미를 가지는 다른 언어로 표시될 수 있습니다).<br>
+   ![attach-role.png](./assets/cloud9-instance-iam-role.png)
 3. IAM Role에서 cloud9-admin을 선택한 후, Save 버튼을 클릭합니다.<br>
     > (참고) 여기에 표시되는 화면은 실제로 설정하고 있는 환경과 조금씩 다를 수 있습니다.<br>
 
-    ![modify-role.png](./assets/modify-role-new.png)
+    ![modify-role.png](./assets/modify-role-new2.png)
 
 ### 1.4. IDE에서 IAM 설정 업데이트
 
@@ -153,6 +166,15 @@ curl -sL https://github.com/derailed/k9s/releases/download/v0.27.4/k9s_Linux_amd
 ```bash
 curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 helm version --short
+```
+
+### 2.5. 디스크 증설
+도커 이미지를 빌드하는 동안, AWS Cloud9 환경에서 용량 부족 이슈가 발생할 수 있습니다. 이를 해결하기 위해, 디스크를 증설하는 쉘 스크립트를 실행합니다.
+
+```bash
+# 다운로드 및 실행
+curl -fsSL https://raw.githubusercontent.com/shkim4u/kubernetes-misc/main/aws-cloud9/resize.sh | bash
+df -h
 ```
 
 ## 3. AWS CLI 업데이트
@@ -254,16 +276,10 @@ export ACCOUNT_ID=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/doc
 echo "export ACCOUNT_ID=${ACCOUNT_ID}" | tee -a ~/.bash_profile
 ```
 
-도커 이미지를 빌드하는 동안, AWS Cloud9 환경에서 용량 부족 이슈가 발생할 수 있습니다. 이를 해결하기 위해, 디스크 사이즈를 증설하는 쉘 스크립트를 실행합니다.
-
-```bash
-# 다운로드 및 실행
-curl -fsSL https://raw.githubusercontent.com/shkim4u/kubernetes-misc/main/aws-cloud9/resize.sh | bash
-df -h
-```
-
 ## 실습 가이드 및 소스 리포지터리 받기 (git clone)
 ```bash
+cd ~/environment
+
 git clone https://github.com/shkim4u/modern-architecture.git
 cd modern-architecture
 ```

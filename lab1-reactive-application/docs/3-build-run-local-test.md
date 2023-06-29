@@ -18,7 +18,11 @@ cd ~/spring-reactive-redis-handson
 ```bash
 # 프로그램 실행
 nohup java -XX:+HeapDumpOnOutOfMemoryError -Duser.timezone=Asia/Seoul -jar build/libs/spring-reactive-redis-handson-0.0.1-SNAPSHOT.jar &
+````
+> (참고)<br>
+> ```nohup``` 명령어를 실행하면 표준 출력이 저장되는 파일 (nohup.out)을 알려주는 주는 메시지가 표시되는데 ```Enter```를 입력하여 다음 명령을 수행합니다.
 
+```bash
 # 실행 확인
 lsof -i -P -n | grep 8080
 ```

@@ -1,6 +1,13 @@
 import * as cdk from 'aws-cdk-lib';
 import {Construct} from "constructs";
-import {aws_ec2, aws_elasticloadbalancingv2, aws_elasticloadbalancingv2_targets, Stack, StackProps} from "aws-cdk-lib";
+import {
+    aws_ec2,
+    aws_elasticloadbalancingv2,
+    aws_elasticloadbalancingv2_targets,
+    Duration,
+    Stack,
+    StackProps
+} from "aws-cdk-lib";
 import {Role} from "aws-cdk-lib/aws-iam";
 import {ApplicationProtocol} from "aws-cdk-lib/aws-elasticloadbalancingv2";
 
@@ -92,7 +99,7 @@ export class Ec2Stack extends Stack {
                     subnets: publicSubnets
                 },
                 internetFacing: true,
-                securityGroup: this.albInstanceSecurityGroup
+                securityGroup: this.albInstanceSecurityGroup,
             }
         );
         alb.node.addDependency(this.ec2Instance);

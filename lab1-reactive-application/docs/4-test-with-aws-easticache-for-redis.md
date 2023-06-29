@@ -4,7 +4,7 @@
 
 여기에서 한발 더 나아가 AWS가 제공하는 Managed Service인 ```Amazon ElastiCache for Reds```를 대상으로 동일한 테스트를 수행해 보도록 하겠습니다.
 
-이미 리액티브 어플리케이션의 동작 원리는 살펴보았으므로, 이번에는 AWS에서 관리형 Redis 서버를 체험해 보는 취지로 둘러보시면 좋을 것 같습니다.
+이미 리액티브 어플리케이션의 동작 원리는 살펴보았으므로, 이번에는 AWS에서 관리형 Redis 서버를 함께 체험해 보는 취지로 둘러보시면 좋을 것 같습니다.
 
 
 ## Amazon ElastiCache for Redis 클러스터 엔드포인트 확인
@@ -45,12 +45,20 @@ echo
 
 ## 어플리케이션 (재)빌드
 ```bash
+# 어플리케이션이 실행 중이면 종료
+kill -9 `ps -ef | grep spring-reactive-redis-handson | grep -v grep | awk '{print $2}'`
+kill -9 `ps -ef | grep redis-server | grep -v grep | awk '{print $2}'`
+rm -rf nohup.out
+lsof -i -P -n | grep 8080
+```
+
+```bash
 cd ~/spring-reactive-redis-handson
-./gradlew build -x test
+./gradlew clean build -x test
 ```
 ![Rebuild Application](./assets/rebuild-reactive-application.png)
 
-## 리액티브 어플리케이션 실행
+## 리액티브 어플리케이션 (재)실행
 
 ```bash
 cd ~/spring-reactive-redis-handson
@@ -86,7 +94,10 @@ curl http://localhost:8080/load
 > (참고)<br>
 > 위 명령을 수행하면 원격 레디스 클러스터에 접속한 후 10만개의 데이터를 메모리 캐시에 적재합니다.<br>
 > 그리고 아래 그림과 같이 원격 레디스 클러스터에 접속한 상태를 확인할 수 있습니다.<br><br>
-![Remote Redis Cluster Connected](./assets/redis-cluster-connected.png)
+```bash
+lsof -i -P -n | grep 6379
+```
+> ![Remote Redis Cluster Connected](./assets/redis-cluster-connected.png)
 
 2. AWS 콘솔에서 ```EC2 > 대상 그룹 > RA-Ec2-XXX``` 이름을 가진 대상 그룹의 상태가 ```Healthy```임을 확인합니다.
 ![Target EC2 Healthy](./assets/target-ec2-server-healthy.png)
@@ -106,6 +117,14 @@ http://<위에서 확인한 ALB의 DNS 이름>/normal-list
 
 ![Browser Imperative Call](./assets/browser-imperative-call.png)
 
+만약 아래와 같이 Gateway Timeout 에러가 발생한다면 로컬에서 다음과 같이 테스트를 수행해 봅니다.<br>
+![Gateway Timeout](./assets/normal-list-gateway-timeout.png)
+
+```bash
+curl http://localhost:8080/normal-list | wc -l
+```
+![CURL Normal List](./assets/curl-normal-list.png)
+
 5. (리액티브/비동기 방식으로 호출) 위에서 확인한 Application Load Balancer의 DNS 이름을 사용하여 브라우저에서 다음 주소를 접근해 봅니다.
 ```bash
 http://<위에서 확인한 ALB의 DNS 이름>/reactive-list
@@ -118,7 +137,7 @@ http://<위에서 확인한 ALB의 DNS 이름>/reactive-list
 
 위 4와 5의 차이가 느껴지시나요?!
 
-## 성능 비교
+## Benefits: 성능, 동시성 및 수신측 오류에 대한 복원력에 대한 고찰
 
 사용자 경험의 극명한 차이 외에도 리액티브하게 호출함으로써 성능 측면에서의 개선도 꾀할 수 있습니다.
 
@@ -128,17 +147,37 @@ http://<위에서 확인한 ALB의 DNS 이름>/reactive-list
 ```bash
 time curl http://localhost:8080/normal-list
 ```
-![Imperative Call Response Time](./assets/response-time-imperative-call.png)
+![Imperative Call Response Time](./assets/response-time-imperative-call-aws-elasticache.png)
 
 2. 리액티스/비동기 호출 방식 (전체 호출 시간 예시)<br>
 ```bash
 time curl http://localhost:8080/reactive-list
 ```
-![Reactive Call Response Time](./assets/response-time-reactive-call.png)
+![Reactive Call Response Time](./assets/response-time-reactive-call-aws-elasticache.png)
 
 이러한 차이가 생기는 원인은 아마 쉽게 직관적으로 짐작하실 수 있으리라 생각됩니다.<br>
 
 즉, 리액트브하게 구현된 동작은, 동기적 호출에서 10만개의 데이터가 레디스로부터 백엔드 서버로 적재되는 동안에 기다리는 시간 낭비 없이, 모든 데이터가 비동기적으로 준비되어 필요할 때만 메시지 스트림으로 호출자에게 바로 바로 Back-feeding되기 때문일 것입니다.
+
+리액티브하게 구성된 시스템은 또한 수신측 (클라이언트)의 오류로부터 영향을 받지 않고 전체 복원력을 유지할 수 있습니다.<br>
+예를 들어 전통적인 동기적 방식으로 호출하여 10만개의 데이터가 백엔드에서 적재되고 있는 도중에 클라이언트 브라우저가 연결을 끊게 될 경우에도 백엔드는 여전히 자원을 소모하면서 해당 작업에 대한 완료를 시도합니다. 하지만 리액티브하게 구성된 백엔드 시스템은 브라우저의 오류를 감지하고 필요없는 작업에 대해서는 수행을 중단할 수 있습니다.
+
+## (Challenge) Application Load Balancer 타임아웃 조정
+우리는 앞서 동기적 호출을 웹 브라우저에서 수행할 경우 ```504 Gateway Time-out``` 에러를 접하였습니다.<br>
+이는 실패하는 호출로부터 시스템을 보호하기 위하여 의도된 것이며 Application Load Balancer는 기본값으로 1분이 설정되어 있습니다.<br>
+
+하지만 해당 프로덕트의 PO (Product Owner)는 동기적 호출의 경우에도 실패하지 않았으면 좋겠고, 따라서 이 타임아웃 값을 2분으로 늘려달라는 요청을 하였습니다.
+
+해당 아키텍처의 배포를 담당하는 입장에서 IaC (CDK) 코드의 어느 부분을 수정하면 좋을까요?<br>
+이 부분을 수정하여 동기적 호출 (http://<ALB DNS Name):normal-list)에서도 호출이 성공하도록 수정해 보십시요.
+
+### 힌트
+1. 다음 CDK 문서 참조: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_elasticloadbalancingv2-readme.html
+2. 관련 CDK 소스는 Cloud9 환경의 ```~/environment/modern-architecture/lab1-reactive-application/infrastructure/lib/ec2-stack.ts``` 입니다.
+3. 1번의 CDK 문서를 참고하여 2번의 파일을 수정한 후 ```npm run deploy```를 Cloud9 환경에서 다시 수행해 주시면 됩니다.
+4. 이후 ```http://<ALB DNS 이름>/normal-list```를 아래와 같이 브라우저에서 호출하여 시간이 걸리지만 정상 완료됨을 확인합니다.
+
+![](./assets/aws-elasticache-normal-list-timeout-adjusted.png)
 
 ---
 

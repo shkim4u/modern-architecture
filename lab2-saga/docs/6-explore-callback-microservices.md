@@ -1,6 +1,6 @@
 # 콜백 마이크로서비스 살펴보기
 
-이전 섹션에서 우리는 CreateOrderFunction Lambda가 아래 JSON 페이로드에서 웹 소켓 클라이언트 콜백 URL을 반환했음을 확인했습니다. 그런 다음 AwsomePets 웹 애플리케이션은 해당 URL의 웹 소켓 연결을 열어 주문 상태에 대한 업데이트를 수신합니다.
+이전 섹션에서 우리는 CreateOrderFunction Lambda가 아래 JSON 페이로드에서 웹 소켓 클라이언트 콜백 URL을 반환했음을 확인했습니다. 그런 다음 AWSomePets 웹 애플리케이션은 해당 URL의 웹 소켓 연결을 열어 주문 상태에 대한 업데이트를 수신합니다.
 ```json
 {
     "statusCode": 202,
