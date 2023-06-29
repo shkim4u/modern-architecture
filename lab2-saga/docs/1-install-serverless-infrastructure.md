@@ -7,7 +7,7 @@
 1. 다음 명령을 실행하여 파일을 다운로드하고 압축을 풉니다.
 ```bash
 cd ~/environment
-curl -fsSL https://github.com/shkim4u/modern-architecture/raw/main/resources/lab2-saga/awsomepets-serverless.zip -o awsomepets-serverless.zip
+curl -fsSL https://github.com/shkim4u/modern-architecture/raw/main/lab2-saga/resources/awsomepets-serverless.zip -o awsomepets-serverless.zip
 
 unzip awsomepets-serverless.zip
 cd awsomepets-serverless
@@ -25,22 +25,23 @@ sam deploy --guided
 
 4. 배포에 필요한 구성 값을 입력하라는 메시지가 표시됩니다. 필요한 매개변수에 대해 아래 값을 사용하십시오. 기본값이나 빈값을 사용하려면 Enter를 누르시면 됩니다.<br>
 ```bash
-Stack Name [sam-app]: awsomepets<br>
-AWS Region [ap-northeast-2]: <br>
-Parameter StageName [v1]:<br> 
-Confirm changes before deploy [y/N]: y<br>
-Allow SAM CLI IAM role creation [Y/n]: y<br>
-Save arguments to configuration file [Y/n]: y<br>
-SAM configuration file [samconfig.toml]:<br>
-SAM configuration environment [default]:<br>
+Stack Name [awsomepets]: 
+AWS Region [ap-northeast-2]: 
+Parameter StageName [v1]:
+Confirm changes before deploy [Y/n]: 
+Allow SAM CLI IAM role creation [Y/n]: 
+Save arguments to configuration file [Y/n]: 
+SAM configuration file [samconfig.toml]:
+SAM configuration environment [default]:
 ---------------------------------------------
-Deploy this changeset? [y/N]: y
+# (주의) 아래 입력에서 "y"를 입력하여 바로 배포를 시작합니다.
+Deploy this changeset? [y/N]: 
 ```
 
 5. AWS 환경 설정이 완료되면 다음 CloudFormation 출력이 표시됩니다.<br>
 ![SAM CloudFormation Output](assets/sam-cli-output.png)
 
-6. 이제 다음 서비스를 배포했습니다.
+6. 배포가 끝나면 다음 자원이 생성됩니다.
    - Amazon API Gateway REST API - 주문 제출용 REST API.
    - Amazon API Gateway Websocket API - 주문 상태 업데이트를 수신하기 위한 Websocket API.
    - AWS Step Function - Lambda 함수를 실행하고 Saga 트랜잭션을 시퀀싱하는 Orchestrator.
