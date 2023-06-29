@@ -126,15 +126,23 @@ cd awsomepets-frontend
 e.g. https://xxxx.execute-api.us-east-1.amazonaws.com/v1/order
 ```
 
-13. 텍스트 편집기로 endpoint.json 파일을 엽니다.<br>
-![Endpoint File](assets/endpoints-file.png)
+13. 텍스트 편집기 혹은 C9 CLI로 endpoint.json 파일을 엽니다.<br>
+```bash
+c9 open endpoints.json
+```
+
+[//]: # (![Endpoint File]&#40;assets/endpoints-file.png&#41;)
 
 14. ```[Please enter the endpoint url here]``` 부분을 복사한 URL로 ```endpoints.json``` 파일을 저장합니다.
+
+![Endpoint File](assets/endpoints-file-set.png)
 
 15. 아래 명령을 실행하여 awsomepets-frontend 폴더의 전체 콘텐츠를 S3에 복사합니다. ```<BudketName>``` 부분을 8에서 기록해 둔 자신의 Bucket 이름으로 바꿉니다.
 ```bash
 aws s3 sync . s3://<BucketName>
 ```
+![](assets/upload-frontend.png)
+
 
 ---
 
