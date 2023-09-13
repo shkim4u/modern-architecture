@@ -74,21 +74,24 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 helm version --short
 
 ## 3. Upgrade AWS CLI.
-echo "3. Upgrading AWS CLI..."
-aws --version
+## [2023-09-13] 새로 생성되는 Cloud9 환경의 AWS CLI가 Version 2로 업그레이드 되었으므로 더 이상 수행할 필요가 없음.
+echo "3. AWS CLI now supports version 2 by default at new Cloud9 environment launch. Skipping the AWS CLI upgrade process..."
 
-echo "3.1. Removing the AWS CLI Version 1..."
-sudo rm /usr/bin/aws
-sudo rm /usr/bin/aws_completer
-sudo rm -rf /usr/local/aws-cli
+#echo "3. Upgrading AWS CLI..."
+#aws --version
 
-echo "3.1. Installing AWS CLI Version 2..."
-rm -rf ./aws | true
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip -q awscliv2.zip
-sudo ./aws/install
-hash -d aws
-aws --version
+#echo "3.1. Removing the AWS CLI Version 1..."
+#sudo rm /usr/bin/aws
+#sudo rm /usr/bin/aws_completer
+#sudo rm -rf /usr/local/aws-cli
+
+#echo "3.1. Installing AWS CLI Version 2..."
+#rm -rf ./aws | true
+#curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+#unzip -q awscliv2.zip
+#sudo ./aws/install
+#hash -d aws
+#aws --version
 
 ## 4. Upgrade AWS CDK.
 echo "4. Upgrading AWS CDK..."
