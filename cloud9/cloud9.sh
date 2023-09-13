@@ -95,6 +95,13 @@ echo "3. AWS CLI now supports version 2 by default at new Cloud9 environment lau
 
 ## 4. Upgrade AWS CDK.
 echo "4. Upgrading AWS CDK..."
+## First, install the LTS version.
+#nvm install --lts
+## Then, uninstall the EOL'ed node version 16.20.0
+#nvm uninstall 16.20.2
+## Set default node to LTS.
+#nvm use --lts
+#
 npm uninstall -g aws-cdk
 rm -rf $(which cdk)
 npm install -g aws-cdk
