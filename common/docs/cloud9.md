@@ -14,7 +14,6 @@ IDE로 Cloud9을 사용하기 위해서 Cloud9 환경을 시작하고, 각종 �
     * 2.2. eksctl 설치
     * 2.3. k9s 설치
     * 2.4. Helm 설치
-    * 2.5. 디스크 증설
 3. AWS CLI 업데이트
 4. AWS CDK 업그레이드
 5. 기타 도구 설치 및 구성
@@ -23,6 +22,7 @@ IDE로 Cloud9을 사용하기 위해서 Cloud9 환경을 시작하고, 각종 �
     * 5.3. jq 설치하기
     * 5.4. bash-completion 설치하기
     * 5.5. Cloud9 추가 설정하기
+    * 5.6. 디스크 증설
 
 ## 1. Cloud9 시작하기
 
@@ -168,15 +168,6 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 helm version --short
 ```
 
-### 2.5. 디스크 증설
-도커 이미지를 빌드하는 동안, AWS Cloud9 환경에서 용량 부족 이슈가 발생할 수 있습니다. 이를 해결하기 위해, 디스크를 증설하는 쉘 스크립트를 실행합니다.
-
-```bash
-# 다운로드 및 실행
-curl -fsSL https://raw.githubusercontent.com/shkim4u/kubernetes-misc/main/aws-cloud9/resize.sh | bash
-df -h
-```
-
 ## 3. AWS CLI 업데이트
 Cloud9에 설치된 AWS CLI의 버전이 1일 경우 kubectl과의 연계에 문제가 있을 수 있습니다. 이를 해소하기 위해 AWS CLI를 업데이트합니다.<br>
 > (참고) aws --version 명령을 실행했을 때 다음과 같이 표시되면 AWS CLI Version 1 환경입니다.<br>
@@ -274,6 +265,15 @@ aws configure get default.region
 export ACCOUNT_ID=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.accountId')
 
 echo "export ACCOUNT_ID=${ACCOUNT_ID}" | tee -a ~/.bash_profile
+```
+
+### 5.6. 디스크 증설
+도커 이미지를 빌드하는 동안, AWS Cloud9 환경에서 용량 부족 이슈가 발생할 수 있습니다. 이를 해결하기 위해, 디스크를 증설하는 쉘 스크립트를 실행합니다.
+
+```bash
+# 다운로드 및 실행
+curl -fsSL https://raw.githubusercontent.com/shkim4u/kubernetes-misc/main/aws-cloud9/resize.sh | bash
+df -h
 ```
 
 ## 실습 가이드 및 소스 리포지터리 받기 (git clone)

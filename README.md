@@ -60,7 +60,7 @@ Amazon DynamoDB는 모든 규모에서 한 자릿수 밀리초의 성능을 제�
 
 # 작업 환경 (Cloud9) 설정
 현대적 아키텍처 실습을 진행하기에 앞서 우선 작업 환경으로 쓰일 Cloud9에 대한 환경 설정을 진행합니다.<br>
-[![작업 환경 (Cloud9) 설정](common/docs/assets/configure-cloud9.png)](common/docs/cloud9.md)
+[![작업 환경 (Cloud9) 설정](common/docs/assets/configure-cloud9.png)](common/docs/cloud9-latest.md)
 
 # 실습 1 - 리액티브 어플리케이션 맛보기
 이 실습에서는 현대적인 시스템 구축에 있어 기본적인 프로그래밍 패러다임이 되고 있는 리액티브 프로그래밍 기법을 Spring Boot과 Redis를 활용하여 간단하게 살펴보도록 하겠습니다.<br>
