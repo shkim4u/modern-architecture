@@ -1,0 +1,789 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: "AWS::Serverless-2016-10-31"
+
+Description: "AWSome Petstore template"
+
+Parameters:
+    StageName:
+        Type: String
+        Default: "v1"
+        AllowedValues: [ "v1" ]
+
+Resources:
+    # Lambda Functions
+    OrderWSCallbackFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            FunctionName: "OrderWSCallbackFunction"
+            Description: "Callback to Websocket client with Order success or fail status"
+            Environment:
+                Variables:
+                    WS_CONNECTION_URL: !Sub "https://${CallbackWSAPI}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/@connections"
+                    CLIENT_CALLBACK_TABLE: !Ref ClientCallbackTable
+            Handler: "index.handler"
+            CodeUri: src/order/OrderWSCallbackFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref ClientCallbackTable
+                - AmazonAPIGatewayInvokeFullAccess
+
+    # Had to use inlineCode property as it's the only way
+    # to get cnf-response library included for CF notification
+    PopulateCatalogueFunction:
+        Type: "AWS::Serverless::Function"
+        DependsOn: CatalogueTable
+        Properties:
+            FunctionName: "PopulateCatalogueFunction"
+            Description: "Helper function to populate catalogue items"
+            Environment:
+                Variables:
+                    CATALOGUE_TABLE: !Ref CatalogueTable
+            Handler: "index.handler"
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref CatalogueTable
+            InlineCode: |
+                const AWS = require('aws-sdk');
+                const ddb = new AWS.DynamoDB.DocumentClient();
+                const catalogueTable = process.env.CATALOGUE_TABLE;
+                const CFN_RESPONSE = require('cfn-response');
+
+                exports.handler = (event, context) => {
+                  console.log("REQUEST RECEIVED:\n" + JSON.stringify(event))
+
+                  // For Delete requests, immediately send a SUCCESS response.
+                  if (event.RequestType == "Delete") {
+                    CFN_RESPONSE.send(event, context, "SUCCESS", {});
+                    return;
+                  }
+
+                  // List of catalogue times
+                  let items  = [
+                    { "id": "9305f481-8399-43de-9912-fd3d2b9f1069", "title": "Cat", "unitPrice": 150, "imageUrl": "/images/cat.jpg" },
+                    { "id": "417e0721-4317-41a6-bb57-54646ace9a0b", "title": "Dog", "unitPrice": 200, "imageUrl": "/images/dog.jpg"  },
+                    { "id": "81ad9dae-3f63-4e64-baac-a984dfc2fb28", "title": "Bird", "unitPrice": 30, "imageUrl": "/images/bird.jpg"  },
+                    { "id": "c7ced823-9d1b-4c36-8087-0b15208c94f7", "title": "Fish", "unitPrice": 10, "imageUrl": "/images/fish.jpg"  },
+                    { "id": "1212b901-05c3-486e-af51-de54054604f8", "title": "Rabbit", "unitPrice": 50, "imageUrl": "/images/rabbit.jpg" },
+                    { "id": "0d1b5d4d-1206-4462-842f-130a9545a08f", "title": "Hamster", "unitPrice": 30, "imageUrl": "/images/hamster.jpg" },
+                    { "id": "c2429581-7fd0-4ee5-b5c9-02a42be68db0", "title": "Pony", "unitPrice": 3000, "imageUrl": "/images/pony.jpg" },
+                    { "id": "3aad800f-44e2-445b-9bec-cbb7f0b14bef", "title": "Chicken", "unitPrice": 20, "imageUrl": "/images/chicken.jpg"  }
+                  ];
+
+                  // Build the dynamodb json PutRequest
+                  let catalogueItems = [];
+                  for(let i=0; i<items.length;i++) {
+                    catalogueItems.push({
+                      PutRequest: {
+                        Item: {
+                          id: items[i].id,
+                          title: items[i].title,
+                          unitPrice: items[i].unitPrice,
+                          imageUrl: items[i].imageUrl
+                        }
+                      }
+                    });
+                  }
+
+                  let params = {
+                    RequestItems: {
+                      [catalogueTable]: catalogueItems
+                    }
+                  };
+
+                  console.log(params);
+
+                  ddb.batchWrite(params, function(err, data) {
+                    if(err) {
+                      CFN_RESPONSE.send(event, context, "FAILED", {Error: "Invoke PopulateCatalogueFunction call failed"});
+                    } else {
+                      CFN_RESPONSE.send(event, context, "SUCCESS", {});
+                    }
+                  });
+                };
+
+
+    #Invoke the lambda function to populate the catalogue table
+    Primerinvoke:
+        Type: AWS::CloudFormation::CustomResource
+        DependsOn: PopulateCatalogueFunction
+        Version: "1.0"
+        Properties:
+            ServiceToken: !GetAtt PopulateCatalogueFunction.Arn
+
+    CancelOrderFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            FunctionName: "CancelOrderFunction"
+            Description: "Cancel the order function"
+            Environment:
+                Variables:
+                    ORDERS_TABLE: !Ref OrdersTable
+            Handler: "index.handler"
+            CodeUri: src/order/CancelOrderFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref OrdersTable
+
+    CreateOrderFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "Create a new order and trigger the Order Saga transaction"
+            Environment:
+                Variables:
+                    ORDERS_TABLE: !Ref OrdersTable
+                    WS_API_STAGE: !Ref StageName
+                    WS_API_URL: !Sub "wss://${CallbackWSAPI}.execute-api.${AWS::Region}.amazonaws.com"
+                    ORDER_ORCHESTRATOR_ARN: !GetAtt StepFunctionsStateMachine.Arn
+            FunctionName: "CreateOrderFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/CreateOrderFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref OrdersTable
+                - StepFunctionsExecutionPolicy:
+                      StateMachineName: !GetAtt StepFunctionsStateMachine.Name
+
+    ReleaseInventoryFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "Release items back to be available to inventory"
+            Environment:
+                Variables:
+                    INVENTORY_TABLE: !Ref InventoryTable
+            FunctionName: "ReleaseInventoryFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/ReleaseInventoryFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref InventoryTable
+
+    CompleteOrderFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "Complete order processing and set order status flag to 'completed'"
+            Environment:
+                Variables:
+                    ORDERS_TABLE: !Ref OrdersTable
+            FunctionName: "CompleteOrderFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/CompleteOrderFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref OrdersTable
+
+    ProcessPaymentFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "Process the order's payment details"
+            Environment:
+                Variables:
+                    PAYMENTS_TABLE: !Ref PaymentsTable
+                    FETCH_CATALOGUE_ENDPOINT: !Sub "https://${CatalogueRESTAPI}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/catalogue"
+            FunctionName: "ProcessPaymentFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/ProcessPaymentFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref PaymentsTable
+
+    ReserveInventoryFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "Reserve items in the shopping cart for the order"
+            Environment:
+                Variables:
+                    INVENTORY_TABLE: !Ref InventoryTable
+            FunctionName: "ReserveInventoryFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/ReserveInventoryFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref InventoryTable
+
+    OrderWSConnectFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "On Websocket client connect, register it's connection id against the order id"
+            Environment:
+                Variables:
+                    CLIENT_CALLBACK_TABLE: !Ref ClientCallbackTable
+            FunctionName: "OrderWSConnectFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/OrderWSConnectFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref ClientCallbackTable
+
+    OrderWSDisconnectFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "On Client Websocket disconnect remove from listening to order"
+            Environment:
+                Variables:
+                    CLIENT_CALLBACK_TABLE: !Ref ClientCallbackTable
+            FunctionName: "OrderWSDisconnectFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/OrderWSDisconnectFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref ClientCallbackTable
+
+    OrderWSPendingFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "Get pending order callbacks"
+            Environment:
+                Variables:
+                    CLIENT_CALLBACK_TABLE: !Ref ClientCallbackTable
+            FunctionName: "OrderWSPendingFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/OrderWSPendingFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref ClientCallbackTable
+
+    ProcessRefundFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "Process order refund"
+            Environment:
+                Variables:
+                    PAYMENTS_TABLE: !Ref PaymentsTable
+            FunctionName: "ProcessRefundFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/ProcessRefundFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref PaymentsTable
+
+
+    FetchCatalogueByIdsFunction:
+        Type: "AWS::Serverless::Function"
+        Properties:
+            Description: "Fetch catalogue items by ids"
+            Environment:
+                Variables:
+                    CATALOGUE_TABLE: !Ref CatalogueTable
+            FunctionName: "FetchCatalogueByIdsFunction"
+            Handler: "index.handler"
+            CodeUri: src/order/FetchCatalogueByIdsFunction/
+            MemorySize: 128
+            Runtime: "nodejs16.x"
+            Timeout: 3
+            Policies:
+                - DynamoDBCrudPolicy:
+                      TableName: !Ref CatalogueTable
+
+    CatalogueTable:
+        Type: "AWS::DynamoDB::Table"
+        Properties:
+            AttributeDefinitions:
+                -
+                    AttributeName: "id"
+                    AttributeType: "S"
+            BillingMode: "PAY_PER_REQUEST"
+            TableName: "CatalogueTbl"
+            KeySchema:
+                -
+                    AttributeName: "id"
+                    KeyType: "HASH"
+
+    ClientCallbackTable:
+        Type: "AWS::DynamoDB::Table"
+        Properties:
+            AttributeDefinitions:
+                -
+                    AttributeName: "connectionId"
+                    AttributeType: "S"
+                -
+                    AttributeName: "orderId"
+                    AttributeType: "S"
+            BillingMode: "PAY_PER_REQUEST"
+            TableName: "ClientCallbackTbl"
+            KeySchema:
+                -
+                    AttributeName: "orderId"
+                    KeyType: "HASH"
+                -
+                    AttributeName: "connectionId"
+                    KeyType: "RANGE"
+            GlobalSecondaryIndexes:
+                -
+                    IndexName: "connectionId-orderId-index"
+                    KeySchema:
+                        -
+                            AttributeName: "connectionId"
+                            KeyType: "HASH"
+                        -
+                            AttributeName: "orderId"
+                            KeyType: "RANGE"
+                    Projection:
+                        ProjectionType: "ALL"
+                    ProvisionedThroughput:
+                        ReadCapacityUnits: 0
+                        WriteCapacityUnits: 0
+
+    OrdersTable:
+        Type: "AWS::DynamoDB::Table"
+        Properties:
+            AttributeDefinitions:
+                -
+                    AttributeName: "orderId"
+                    AttributeType: "S"
+            BillingMode: "PAY_PER_REQUEST"
+            TableName: "OrdersTbl"
+            KeySchema:
+                -
+                    AttributeName: "orderId"
+                    KeyType: "HASH"
+
+    InventoryTable:
+        Type: "AWS::DynamoDB::Table"
+        Properties:
+            AttributeDefinitions:
+                -
+                    AttributeName: "orderId"
+                    AttributeType: "S"
+                -
+                    AttributeName: "sk"
+                    AttributeType: "S"
+                -
+                    AttributeName: "transactionDate"
+                    AttributeType: "N"
+            BillingMode: "PAY_PER_REQUEST"
+            TableName: "InventoryTbl"
+            KeySchema:
+                -
+                    AttributeName: "orderId"
+                    KeyType: "HASH"
+                -
+                    AttributeName: "sk"
+                    KeyType: "RANGE"
+            GlobalSecondaryIndexes:
+                -
+                    IndexName: "sk-transactionDate-index"
+                    KeySchema:
+                        -
+                            AttributeName: "sk"
+                            KeyType: "HASH"
+                        -
+                            AttributeName: "transactionDate"
+                            KeyType: "RANGE"
+                    Projection:
+                        ProjectionType: "ALL"
+                    ProvisionedThroughput:
+                        ReadCapacityUnits: 0
+                        WriteCapacityUnits: 0
+
+    PaymentsTable:
+        Type: "AWS::DynamoDB::Table"
+        Properties:
+            AttributeDefinitions:
+                -
+                    AttributeName: "orderId"
+                    AttributeType: "S"
+                -
+                    AttributeName: "transactionDate"
+                    AttributeType: "N"
+            BillingMode: "PAY_PER_REQUEST"
+            TableName: "PaymentsTbl"
+            KeySchema:
+                -
+                    AttributeName: "orderId"
+                    KeyType: "HASH"
+                -
+                    AttributeName: "transactionDate"
+                    KeyType: "RANGE"
+
+    OrderSagaFailTopic:
+        Type: "AWS::SNS::Topic"
+        Properties:
+            DisplayName: ""
+            TopicName: "OrderSagaFailTopic"
+
+    OrderSagaSuccessTopic:
+        Type: "AWS::SNS::Topic"
+        Properties:
+            DisplayName: ""
+            TopicName: "OrderSagaSuccessTopic"
+
+
+    StepFunctionsStateMachine:
+        Type: "AWS::Serverless::StateMachine"
+        Properties:
+            Name: "OrderOrchestrator"
+            DefinitionUri: statemachine/order-orchestrator.asl.json
+            DefinitionSubstitutions:
+                ReserveInventoryFunctionArn: !GetAtt ReserveInventoryFunction.Arn
+                ReleaseInventoryFunctionArn: !GetAtt ReleaseInventoryFunction.Arn
+                ProcessPaymentFunctionArn: !GetAtt ProcessPaymentFunction.Arn
+                ProcessRefundFunctionArn: !GetAtt ProcessRefundFunction.Arn
+                CompleteOrderFunctionArn: !GetAtt CompleteOrderFunction.Arn
+                CancelOrderFunctionArn: !GetAtt CancelOrderFunction.Arn
+                OrderWSCallbackFunctionArn: !GetAtt OrderWSCallbackFunction.Arn
+                OrderSagaFailTopicArn: "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${OrderSagaFailTopic.TopicName}"
+            Type: "STANDARD"
+            Policies:
+                - LambdaInvokePolicy:
+                      FunctionName: !Ref ReserveInventoryFunction
+                - LambdaInvokePolicy:
+                      FunctionName: !Ref ReleaseInventoryFunction
+                - LambdaInvokePolicy:
+                      FunctionName: !Ref ProcessPaymentFunction
+                - LambdaInvokePolicy:
+                      FunctionName: !Ref ProcessRefundFunction
+                - LambdaInvokePolicy:
+                      FunctionName: !Ref CompleteOrderFunction
+                - LambdaInvokePolicy:
+                      FunctionName: !Ref CancelOrderFunction
+                - LambdaInvokePolicy:
+                      FunctionName: !Ref OrderWSCallbackFunction
+                - SNSPublishMessagePolicy:
+                      TopicName: !GetAtt OrderSagaFailTopic.TopicName
+
+    ApiGatewayConfig:
+        Type: "AWS::ApiGateway::Account"
+        Properties:
+            CloudWatchRoleArn: !GetAtt "ApiGatewayLoggingRole.Arn"
+
+    ApiGatewayLoggingRole:
+        Type: "AWS::IAM::Role"
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    - Effect: Allow
+                      Principal:
+                          Service:
+                              - "apigateway.amazonaws.com"
+                      Action: "sts:AssumeRole"
+            Path: "/"
+            ManagedPolicyArns:
+                - !Sub "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+
+    ## API Gateway REST API - Order
+    OrderRESTAPI:
+        Type: "AWS::ApiGateway::RestApi"
+        Properties:
+            Name: "CreateOrderAPI"
+            Description: "Create Order API"
+            ApiKeySourceType: "HEADER"
+            EndpointConfiguration:
+                Types:
+                    - "REGIONAL"
+
+    OrderRESTStage:
+        Type: "AWS::ApiGateway::Stage"
+        Properties:
+            StageName: !Ref StageName
+            DeploymentId: !Ref OrderRESTDeployment
+            RestApiId: !Ref OrderRESTAPI
+            CacheClusterEnabled: false
+            MethodSettings:
+                - ResourcePath: "/order"
+                  CacheDataEncrypted: false
+                  CacheTtlInSeconds: 300
+                  CachingEnabled: false
+                  DataTraceEnabled: true
+                  HttpMethod: "POST"
+                  LoggingLevel: "ERROR"
+                  MetricsEnabled: true
+                  ThrottlingBurstLimit: 5000
+                  ThrottlingRateLimit: 10000
+            TracingEnabled: true
+
+    OrderRESTResource:
+        Type: "AWS::ApiGateway::Resource"
+        Properties:
+            RestApiId: !Ref OrderRESTAPI
+            PathPart: "order"
+            ParentId: !GetAtt OrderRESTAPI.RootResourceId
+
+    OrderRESTPostMethod:
+        Type: "AWS::ApiGateway::Method"
+        Properties:
+            RestApiId: !Ref OrderRESTAPI
+            ResourceId: !Ref OrderRESTResource
+            HttpMethod: "POST"
+            AuthorizationType: "NONE"
+            ApiKeyRequired: false
+            RequestParameters: { }
+            MethodResponses:
+                - ResponseModels:
+                      "application/json": "Empty"
+                  ResponseParameters:
+                      "method.response.header.Access-Control-Allow-Headers": false
+                      "method.response.header.Access-Control-Allow-Methods": false
+                      "method.response.header.Access-Control-Allow-Origin": false
+                  StatusCode: "200"
+            Integration:
+                CacheNamespace: !Ref OrderRESTResource
+                ContentHandling: "CONVERT_TO_TEXT"
+                IntegrationHttpMethod: "POST"
+                IntegrationResponses:
+                    - ResponseParameters:
+                          "method.response.header.Access-Control-Allow-Origin": "'*'"
+                      ResponseTemplates: { }
+                      StatusCode: "200"
+                PassthroughBehavior: "WHEN_NO_MATCH"
+                TimeoutInMillis: 29000
+                Type: "AWS"
+                Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${CreateOrderFunction}/invocations"
+
+    OrderRESTOptionsMethod:
+        Type: "AWS::ApiGateway::Method"
+        Properties:
+            RestApiId: !Ref OrderRESTAPI
+            ResourceId: !Ref OrderRESTResource
+            HttpMethod: "OPTIONS"
+            AuthorizationType: "NONE"
+            ApiKeyRequired: false
+            RequestParameters: { }
+            MethodResponses:
+                - ResponseModels:
+                      "application/json": "Empty"
+                  ResponseParameters:
+                      "method.response.header.Access-Control-Allow-Headers": false
+                      "method.response.header.Access-Control-Allow-Methods": false
+                      "method.response.header.Access-Control-Allow-Origin": false
+                  StatusCode: "200"
+            Integration:
+                CacheNamespace: !Ref OrderRESTResource
+                IntegrationResponses:
+                    - ResponseParameters:
+                          "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+                          "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                          "method.response.header.Access-Control-Allow-Origin": "'*'"
+                      ResponseTemplates: { }
+                      StatusCode: "200"
+                PassthroughBehavior: "WHEN_NO_MATCH"
+                RequestTemplates:
+                    "application/json": "{\"statusCode\": 200}"
+                TimeoutInMillis: 29000
+                Type: "MOCK"
+
+    OrderRESTDeployment:
+        Type: "AWS::ApiGateway::Deployment"
+        DependsOn:
+            - OrderRESTPostMethod
+            - OrderRESTOptionsMethod
+        Properties:
+            RestApiId: !Ref OrderRESTAPI
+
+    ## API Gateway REST API - Catalogue
+    CatalogueRESTAPI:
+        Type: "AWS::ApiGateway::RestApi"
+        Properties:
+            Name: "CatalogueAPI"
+            Description: "Catalogue API"
+            ApiKeySourceType: "HEADER"
+            EndpointConfiguration:
+                Types:
+                    - "REGIONAL"
+
+    CatalogueRESTStage:
+        Type: "AWS::ApiGateway::Stage"
+        Properties:
+            StageName: !Ref StageName
+            DeploymentId: !Ref CatalogueRESTDeployment
+            RestApiId: !Ref CatalogueRESTAPI
+            CacheClusterEnabled: false
+            MethodSettings:
+                - ResourcePath: "/catalogue"
+                  CacheDataEncrypted: false
+                  CacheTtlInSeconds: 300
+                  CachingEnabled: false
+                  DataTraceEnabled: true
+                  HttpMethod: "POST"
+                  LoggingLevel: "ERROR"
+                  MetricsEnabled: true
+                  ThrottlingBurstLimit: 5000
+                  ThrottlingRateLimit: 10000
+            TracingEnabled: true
+
+    CatalogueRESTResource:
+        Type: "AWS::ApiGateway::Resource"
+        Properties:
+            RestApiId: !Ref CatalogueRESTAPI
+            PathPart: "catalogue"
+            ParentId: !GetAtt CatalogueRESTAPI.RootResourceId
+
+    CatalogueRESTPostMethod:
+        Type: "AWS::ApiGateway::Method"
+        Properties:
+            RestApiId: !Ref CatalogueRESTAPI
+            ResourceId: !Ref CatalogueRESTResource
+            HttpMethod: "POST"
+            AuthorizationType: "NONE"
+            ApiKeyRequired: false
+            RequestParameters: { }
+            MethodResponses:
+                - ResponseModels:
+                      "application/json": "Empty"
+                  ResponseParameters:
+                      "method.response.header.Access-Control-Allow-Headers": false
+                      "method.response.header.Access-Control-Allow-Methods": false
+                      "method.response.header.Access-Control-Allow-Origin": false
+                  StatusCode: "200"
+            Integration:
+                CacheNamespace: !Ref CatalogueRESTResource
+                ContentHandling: "CONVERT_TO_TEXT"
+                IntegrationHttpMethod: "POST"
+                IntegrationResponses:
+                    - ResponseParameters:
+                          "method.response.header.Access-Control-Allow-Origin": "'*'"
+                      ResponseTemplates: { }
+                      StatusCode: "200"
+                PassthroughBehavior: "WHEN_NO_MATCH"
+                TimeoutInMillis: 29000
+                Type: "AWS"
+                Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FetchCatalogueByIdsFunction}/invocations"
+
+    CatalogueRESTDeployment:
+        Type: "AWS::ApiGateway::Deployment"
+        DependsOn:
+            - CatalogueRESTPostMethod
+        Properties:
+            RestApiId: !Ref CatalogueRESTAPI
+
+    ## API Gateway Websocket API
+    CallbackWSAPI:
+        Type: "AWS::ApiGatewayV2::Api"
+        Properties:
+            Name: "OrderCallbackAPI"
+            ApiKeySelectionExpression: "$request.header.x-api-key"
+            ProtocolType: "WEBSOCKET"
+            RouteSelectionExpression: "$request.body.action"
+            DisableExecuteApiEndpoint: false
+
+    CallbackWSStage:
+        Type: "AWS::ApiGatewayV2::Stage"
+        Properties:
+            StageName: !Ref StageName
+            StageVariables: { }
+            ApiId: !Ref CallbackWSAPI
+            DeploymentId: !Ref CallbackWSDeployment
+            RouteSettings: { }
+            DefaultRouteSettings:
+                DataTraceEnabled: false
+                DetailedMetricsEnabled: false
+                LoggingLevel: "ERROR"
+
+    CallbackWSConnectRoute:
+        Type: "AWS::ApiGatewayV2::Route"
+        Properties:
+            ApiId: !Ref CallbackWSAPI
+            ApiKeyRequired: false
+            AuthorizationType: "NONE"
+            RouteKey: "$connect"
+            Target: !Sub "integrations/${CallbackConnectIntegration}"
+    CallbackConnectIntegration:
+        Type: "AWS::ApiGatewayV2::Integration"
+        Properties:
+            ApiId: !Ref CallbackWSAPI
+            ConnectionType: "INTERNET"
+            ContentHandlingStrategy: "CONVERT_TO_TEXT"
+            IntegrationMethod: "POST"
+            IntegrationType: "AWS_PROXY"
+            IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${OrderWSConnectFunction}/invocations"
+            PassthroughBehavior: "WHEN_NO_MATCH"
+            TimeoutInMillis: 29000
+            PayloadFormatVersion: "1.0"
+
+    CallbackWSDeployment:
+        Type: "AWS::ApiGatewayV2::Deployment"
+        DependsOn:
+            - CallbackWSConnectRoute
+        Properties:
+            ApiId: !Ref CallbackWSAPI
+
+    # Api Gateway permission
+    CreateOrderAPIPermission:
+        Type: "AWS::Lambda::Permission"
+        DependsOn:
+            - OrderRESTAPI
+            - CreateOrderFunction
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Ref CreateOrderFunction
+            Principal: apigateway.amazonaws.com
+
+    CatalogueAPIPermission:
+        Type: "AWS::Lambda::Permission"
+        DependsOn:
+            - CatalogueRESTAPI
+            - FetchCatalogueByIdsFunction
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Ref FetchCatalogueByIdsFunction
+            Principal: apigateway.amazonaws.com
+
+    WSConnectAPIPermission:
+        Type: "AWS::Lambda::Permission"
+        DependsOn:
+            - CallbackWSAPI
+            - OrderWSConnectFunction
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Ref OrderWSConnectFunction
+            Principal: apigateway.amazonaws.com
+
+    WSDisconnectAPIPermission:
+        Type: "AWS::Lambda::Permission"
+        DependsOn:
+            - CallbackWSAPI
+            - OrderWSDisconnectFunction
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Ref OrderWSDisconnectFunction
+            Principal: apigateway.amazonaws.com
+
+    WSPendingAPIPermission:
+        Type: "AWS::Lambda::Permission"
+        DependsOn:
+            - CallbackWSAPI
+            - OrderWSPendingFunction
+        Properties:
+            Action: lambda:InvokeFunction
+            FunctionName: !Ref OrderWSPendingFunction
+            Principal: apigateway.amazonaws.com
+Outputs:
+    ApiGatewayInvokeURL:
+        Description: The CreateOrderAPI URL that the client will call to create a new order
+        Value: !Sub "https://${OrderRESTAPI}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/order"

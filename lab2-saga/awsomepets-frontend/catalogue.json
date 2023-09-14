@@ -1,0 +1,10 @@
+[
+  { "id": "9305f481-8399-43de-9912-fd3d2b9f1069", "title": "Cat", "unitPrice": 150, "imageUrl": "/images/cat.jpg" },
+  { "id": "417e0721-4317-41a6-bb57-54646ace9a0b", "title": "Dog", "unitPrice": 200, "imageUrl": "/images/dog.jpg"  },
+  { "id": "81ad9dae-3f63-4e64-baac-a984dfc2fb28", "title": "Bird", "unitPrice": 30, "imageUrl": "/images/bird.jpg"  },
+  { "id": "c7ced823-9d1b-4c36-8087-0b15208c94f7", "title": "Fish", "unitPrice": 10, "imageUrl": "/images/fish.jpg"  },
+  { "id": "1212b901-05c3-486e-af51-de54054604f8", "title": "Rabbit", "unitPrice": 50, "imageUrl": "/images/rabbit.jpg" },
+  { "id": "0d1b5d4d-1206-4462-842f-130a9545a08f", "title": "Hamster", "unitPrice": 30, "imageUrl": "/images/hamster.jpg" },
+  { "id": "c2429581-7fd0-4ee5-b5c9-02a42be68db0", "title": "Pony", "unitPrice": 3000, "imageUrl": "/images/pony.jpg" },
+  { "id": "3aad800f-44e2-445b-9bec-cbb7f0b14bef", "title": "Chicken", "unitPrice": 20, "imageUrl": "/images/chicken.jpg"  }
+]

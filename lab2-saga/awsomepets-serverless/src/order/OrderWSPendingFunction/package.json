@@ -1,0 +1,7 @@
+{
+  "name": "OrderWSPending",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "SAM CLI",
+  "license": "MIT"
+}

@@ -1,0 +1,6 @@
+{
+  "endpoints": {
+    "catalogue": "/catalogue.json",
+    "placeOrder": "[Please enter the endpoint url here]"
+  }
+}

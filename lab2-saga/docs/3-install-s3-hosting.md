@@ -125,23 +125,23 @@ unzip awsomepets-frontend.zip
 cd awsomepets-frontend
 ```
 
-11. 8단계의 텍스트 파일에 저장된 Cloudformation 출력에서 ApiGatewayInvokeURL 키 값을 복사합니다.
-```bash
-e.g. https://xxxx.execute-api.us-east-1.amazonaws.com/v1/order
-```
-
-13. 텍스트 편집기 혹은 C9 CLI로 endpoint.json 파일을 엽니다.<br>
+11. 텍스트 편집기 혹은 C9 CLI로 endpoint.json 파일을 엽니다.<br>
 ```bash
 c9 open endpoints.json
 ```
 
+12. 8단계의 텍스트 파일에 저장된 Cloudformation 출력에서 ApiGatewayInvokeURL 키 값을 복사합니다.
+```bash
+e.g. https://xxxx.execute-api.us-east-1.amazonaws.com/v1/order
+```
+
 [//]: # (![Endpoint File]&#40;assets/endpoints-file.png&#41;)
 
-14. ```[Please enter the endpoint url here]``` 부분을 복사한 URL로 ```endpoints.json``` 파일을 저장합니다.
+13. ```[Please enter the endpoint url here]``` 부분을 복사한 URL로 수정한 후, ```endpoints.json``` 파일을 저장합니다.
 
 ![Endpoint File](assets/endpoints-file-set.png)
 
-15. 아래 명령을 실행하여 awsomepets-frontend 폴더의 전체 콘텐츠를 S3에 복사합니다. ```<BudketName>``` 부분을 8에서 기록해 둔 자신의 Bucket 이름으로 바꿉니다.
+14. 아래 명령을 실행하여 awsomepets-frontend 폴더의 전체 콘텐츠를 S3에 복사합니다. (주의) ```<BudketName>``` 부분을 8에서 기록해 둔 자신의 Bucket 이름으로 바꾼 후 실행합니다.
 ```bash
 aws s3 sync . s3://<BucketName>
 ```

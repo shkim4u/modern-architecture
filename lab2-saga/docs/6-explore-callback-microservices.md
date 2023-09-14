@@ -55,8 +55,10 @@
     ```
 7. OrderWSPendingFunction Lambda로 이동하여 살펴봅니다. 코드를 보려면 index.js 파일을 클릭하십시오. 이 함수는 웹 클라이언트가 웹 소켓 연결에 메시지를 보낼 때마다 OrderCallbackAPI의 $default 경로에 의해 트리거됩니다.
 
-8. 이 OrderWSPendingFunction Lambda는 등록된 웹 클라이언트 ConnectionId로 설정되지 않은 보류 중인 주문 상태 메시지를 확인합니다. 이는 주문 프로세스가 완료된 후 웹 클라이언트가 웹 소켓 연결을 설정할 때 드물게 발생합니다. 이전에 전송되지 않은 주문 있는 경우 OrderWSPendingFunction Lambda는 클라이언트에 대한 웹 소켓 연결을 통해 주문 상태를 반환합니다.<br>
-![DynamoDB ClientCallbackTbl Pending](assets/ddb-clientcallbacktbl-pending-ko-kr.png)
+8. 이 OrderWSPendingFunction Lambda는 웹 클라이언트 ConnectionId가 등록되지 않은, 즉, 보류 중인 주문 상태 메시지를 확인합니다. 이는 주문 프로세스가 완료된 후 웹 클라이언트가 웹 소켓 연결을 설정할 때 드물게 발생합니다. 이전에 전송되지 않은 주문 있는 경우 OrderWSPendingFunction Lambda는 클라이언트에 대한 웹 소켓 연결을 통해 주문 상태를 반환합니다.<br>
+![DynamoDB ClientCallbackTbl Pending](assets/pending-orders-without-connection-id.png)
+
+[//]: # (![DynamoDB ClientCallbackTbl Pending]&#40;assets/ddb-clientcallbacktbl-pending-ko-kr.png&#41;)
 
 ---
 

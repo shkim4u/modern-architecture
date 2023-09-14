@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "awsomepets"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1g56esazos5e4"
+s3_prefix = "awsomepets"
+region = "ap-northeast-2"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "StageName=\"v1\""
+confirm_changeset = true

@@ -1,0 +1,202 @@
+{
+  "Comment": "Awsomepets PoC Order Orchestrator",
+  "StartAt": "ReserveInventory",
+  "TimeoutSeconds": 10,
+  "States": {
+    "ReserveInventory": {
+      "Comment": "Task to reserve order items in inventory",
+      "Type": "Task",
+      "Resource": "${ReserveInventoryFunctionArn}",
+      "TimeoutSeconds": 10,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "ErrReserveInventory"
+          ],
+          "ResultPath": "$.error",
+          "Next": "CancelOrder"
+        }
+      ],
+      "Next": "ProcessPayment"
+    },
+    "ProcessPayment": {
+      "Comment": "Task processes the order payment",
+      "Type": "Task",
+      "Resource": "${ProcessPaymentFunctionArn}",
+      "TimeoutSeconds": 10,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "ErrProcessPayment"
+          ],
+          "ResultPath": "$.error",
+          "Next": "ReleaseInventory"
+        }
+      ],
+      "Next": "CompleteOrder"
+    },
+    "CompleteOrder": {
+      "Comment": "Task sets the order status to completed.",
+      "Type": "Task",
+      "Resource": "${CompleteOrderFunctionArn}",
+      "TimeoutSeconds": 10,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "ErrCompleteOrder"
+          ],
+          "ResultPath": "$.error",
+          "Next": "ProcessRefund"
+        }
+      ],
+      "Next": "OrderCallback"
+    },
+    "ReleaseInventory": {
+      "Comment": "Task to release order items back to inventory",
+      "Type": "Task",
+      "Resource": "${ReleaseInventoryFunctionArn}",
+      "TimeoutSeconds": 10,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "ErrReleaseInventory"
+          ],
+          "ResultPath": "$.error",
+          "Next": "sns:NotifyReleaseInventoryFail"
+        }
+      ],
+      "Next": "CancelOrder"
+    },
+    "sns:NotifyReleaseInventoryFail": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${OrderSagaFailTopicArn}",
+        "Message": {
+          "OrderId.$": "$.orderId",
+          "Error.$": "$.error"
+        }
+      },
+      "ResultPath": "$.error",
+      "Next": "CancelOrder"
+    },
+    "ProcessRefund": {
+      "Comment": "Task to process order refund",
+      "Type": "Task",
+      "Resource": "${ProcessRefundFunctionArn}",
+      "TimeoutSeconds": 10,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "ErrProcessRefund"
+          ],
+          "ResultPath": "$.error",
+          "Next": "sns:NotifyProcessRefundFail"
+        }
+      ],
+      "Next": "ReleaseInventory"
+    },
+    "sns:NotifyProcessRefundFail": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${OrderSagaFailTopicArn}",
+        "Message": {
+          "OrderId.$": "$.orderId",
+          "Error.$": "$.error"
+        }
+      },
+      "ResultPath": "$.error",
+      "Next": "CancelOrder"
+    },
+    "CancelOrder": {
+      "Comment": "Task to set order status to cancel",
+      "Type": "Task",
+      "Resource": "${CancelOrderFunctionArn}",
+      "TimeoutSeconds": 10,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "ErrCancelOrder"
+          ],
+          "ResultPath": "$.error",
+          "Next": "sns:NotifyCancelOrderFail"
+        }
+      ],
+      "Next": "OrderCallback"
+    },
+    "sns:NotifyCancelOrderFail": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${OrderSagaFailTopicArn}",
+        "Message": {
+          "OrderId.$": "$.orderId",
+          "Error.$": "$.error"
+        }
+      },
+      "ResultPath": "$.error",
+      "Next": "OrderCallback"
+    },
+    "OrderCallback": {
+      "Comment": "Task to callback client with order status.",
+      "Type": "Task",
+      "Resource": "${OrderWSCallbackFunctionArn}",
+      "TimeoutSeconds": 20,
+      "Catch": [ {
+        "ErrorEquals": [ "States.ALL" ],
+        "ResultPath": "$.error",
+        "Next": "EndChoice"
+      } ],
+      "Next": "EndChoice"
+    },
+    "EndChoice": {
+      "Comment": "Choice to determine the ending.",
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.status",
+          "StringEquals": "completed",
+          "Next": "OrderSucceeded"
+        }
+      ],
+      "Default": "OrderFailed"
+    },
+    "OrderSucceeded": {
+      "Type": "Succeed"
+    },
+    "OrderFailed": {
+      "Type": "Fail"
+    }
+  }
+}
