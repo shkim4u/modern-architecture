@@ -29,13 +29,14 @@ Stack Name [awsomepets]:
 AWS Region [ap-northeast-2]: 
 Parameter StageName [v1]:
 Confirm changes before deploy [Y/n]: 
-Allow SAM CLI IAM role creation [Y/n]: 
+Allow SAM CLI IAM role creation [Y/n]:
+Disable rollback [y/N]: 
 Save arguments to configuration file [Y/n]: 
 SAM configuration file [samconfig.toml]:
 SAM configuration environment [default]:
 ---------------------------------------------
 # (주의) 아래 입력에서 "y"를 입력하여 바로 배포를 시작합니다.
-Deploy this changeset? [y/N]: 
+Deploy this changeset? [y/N]: y <= 기본값은 'N'이므로 'y'로 바꾸어 입력
 ```
 
 5. AWS 환경 설정이 완료되면 다음 CloudFormation 출력이 표시됩니다.<br>

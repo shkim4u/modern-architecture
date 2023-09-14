@@ -118,10 +118,11 @@ export class Ec2Stack extends Stack {
                 port: 8080,
                 targets: [new aws_elasticloadbalancingv2_targets.InstanceTarget(this.ec2Instance)],
                 healthCheck: {
-                    path: '/hello/alb',
+                    path: '/',
                     unhealthyThresholdCount: 2,
                     healthyThresholdCount: 5,
                     interval: cdk.Duration.seconds(30),
+                    healthyHttpCodes: '200,301,302,404'
                 },
             }
         );

@@ -5,7 +5,7 @@
 ## S3 버킷 및 CloudFront 설정
 1. ```awsomepets-serverless``` 폴더에서 ```template.yaml``` 파일을 편집합니다. 이것은 이전 과정에서 AWS 계정에 서버리스 스택을 배포하는 데 사용된 SAM 파일입니다.<br>
 
-2. ```template.yaml``` 파일에서 ```Resources:``` 줄을 검색합니다. 이는 AWS 계정에서 SAM에 의해서 생성될 서비스 정의입니다. yaml 파일의 ```Resources:``` 줄을 아래 코드로 바꿉니다. 다른 기존 코드 줄을 덮어쓰지 말고 올바른 탭 간격을 유지하는 것에도 주의해 주세요.<br>
+2. ```template.yaml``` 파일에서 ```Resources:``` 줄을 검색합니다. 이는 AWS 계정에서 SAM에 의해서 생성될 서비스 정의입니다. yaml 파일의 ```Resources:``` 줄을 지우고 지운 자리에 아래 코드를 붙여 넣습니다. (주의) 다른 기존 코드 줄은 지우지 말고 ```Resources:``` 줄만을 지워야 하며, 올바른 탭 간격을 유지하는 것에도 주의해 주세요.<br>
 ```yaml
 Resources:
     # Cloudfront setup for SAGA and S3 endpoint
@@ -67,7 +67,7 @@ Resources:
 
 3. 이제 템플릿에서 CloudFront, S3 및 S3 정책 리소스를 정의했습니다. 이 템플릿은 CloudFront CDN에서 배포한 콘텐츠와 함께 awsomepets-lab-<YourAccountId>라는 이름 형식으로 S3 버킷을 생성합니다. CloudFront로 웹 사이트를 배포하고 S3 버킷을 공개하지 않는 것이 보안 관점에서 항상 모범 사례입니다.
 
-4. ```template.yaml``` 파일의 ```Outputs:``` 줄을 아래 코드로 바꿉니다. 다른 기존 코드 줄을 덮어쓰지 말고 올바른 탭 간격에도 유념하세요. 이 정의는 SAM 배포가 완료되면 CloudFront 도메인 URL과 S3 버킷 이름을 표시합니다.
+4. 이번에는 ```template.yaml``` 파일의 ```Outputs:``` 줄을 지운 후 그 자리에 아래 코드를 붙여 넣습니다. (주의) 다른 기존 코드 줄은 지우지 말고 ```Outputs:``` 줄만을 지워야 하며, 올바른 탭 간격을 유지하는 것에도 주의해 주세요. 이 정의는 SAM 배포가 완료되면 CloudFront 도메인 URL과 S3 버킷 이름을 표시합니다.
 ```yaml
 Outputs:
     OriginURL:
@@ -84,17 +84,21 @@ sam build
 sam deploy
 ```
 
-6. 프로세스 전반에 걸쳐 구성 값을 입력하라는 메시지가 다시 표시됩니다. 연결된 구성 매개변수에 대해 아래 값을 사용하십시오. 기본값을 사용하려면 Enter를 누르십시오.
+6. 프로세스 전반에 걸쳐 이전에 구성된 값을 재사용하여 변경 세트를 자동으로 생성해 줍니다. 혹시 구성값을 입력하라는 프롬프트가 표시되면 아래 값을 사용하십시오. 기본값을 사용하려면 Enter를 누르십시오.
 
 ```bash
-Stack Name [awsomepets]:  
-AWS Region [ap-northeast-2]:  
-Parameter StageName [v1]: 
-Confirm changes before deploy [y/N]:  
-Allow SAM CLI IAM role creation [Y/n]:  
-Save arguments to configuration file [Y/n]:  
-SAM configuration file [samconfig.toml]:  
+Stack Name [awsomepets]: 
+AWS Region [ap-northeast-2]: 
+Parameter StageName [v1]:
+Confirm changes before deploy [Y/n]: 
+Allow SAM CLI IAM role creation [Y/n]:
+Disable rollback [y/N]: 
+Save arguments to configuration file [Y/n]: 
+SAM configuration file [samconfig.toml]:
 SAM configuration environment [default]:
+---------------------------------------------
+# (주의) 아래 입력에서 "y"를 입력하여 바로 배포를 시작합니다.
+Deploy this changeset? [y/N]: y <= 기본값은 'N'이므로 'y'로 바꾸어 입력
 ```
 
 7. SAM 도구는 이전 배포와의 차이점을 감지하고 배포될 변경 사항을 표시합니다. Y와 Enter를 눌러 변경 세트를 배포합니다.
